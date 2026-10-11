@@ -145,8 +145,9 @@ def simulate_attack(sim: AttackSimulationRequest):
         "latency_ms": result.latency_ms
     }
 
-@router.post("/waf/test-target")
-def test_target_endpoint(payload: Dict[str, Any] = None):
+@router.api_route("/waf/test-target", methods=["GET", "POST", "PUT", "DELETE"])
+@router.api_route("/waf/test-target/{subpath:path}", methods=["GET", "POST", "PUT", "DELETE"])
+def test_target_endpoint(request: Request, subpath: str = "", payload: Optional[Dict[str, Any]] = None):
     """
     Live test endpoint protected by WAF middleware. 
     If a payload contains malicious SQLi/XSS/RCE, the middleware will block it before reaching this handler!
@@ -154,5 +155,9 @@ def test_target_endpoint(payload: Dict[str, Any] = None):
     return {
         "status": "SUCCESS",
         "message": "Payload safely reached the application handler (WAF allowed the request)",
+        "method": request.method,
+        "query_params": dict(request.query_params),
+        "subpath": subpath,
         "received_data": payload
     }
+

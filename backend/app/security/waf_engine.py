@@ -21,11 +21,13 @@ class WAFEngine:
         self.sqli_patterns = [
             (r"(?i)\bunion\s+(?:all\s+)?select\b", "SQLi: Union Select Query", 95),
             (r"(?i)\b(or|and)\s+['\"]?\w+['\"]?\s*=\s*['\"]?\w+['\"]?", "SQLi: Boolean Tautology (OR 1=1)", 90),
-            (r"(?i);\s*(?:drop\s+table|delete\s+from|insert\s+into|update\s+\w+\s+set|truncate\s+table|alter\s+table)", "SQLi: Stacked DDL/DML Statement", 100),
+            (r"(?i)(?:;\s*)?\b(?:drop\s+table|delete\s+from|insert\s+into|truncate\s+table|alter\s+table)\b", "SQLi: Destructive DDL/DML Statement", 100),
+            (r"(?i)\bselect\s+[\w\*\s,]+\s+from\s+\w+", "SQLi: Direct Database Select Query", 90),
             (r"(?i)\b(information_schema|sysdatabases|sysobjects|pg_catalog)\b", "SQLi: Database Metadata Reconnaissance", 85),
             (r"(?i)\b(?:waitfor\s+delay|sleep\s*\(\s*\d+\s*\)|pg_sleep\s*\(\s*\d+\s*\))", "SQLi: Time-based Blind Delay", 95),
             (r"(?i)(?:'|\"|%27|%22)\s*(?:--|\#|\/\*).*?(?:select|drop|insert|delete|from)", "SQLi: Comment Injected Directive", 85),
             (r"(?i)\bexec\s*(?:master\.\.xp_cmdshell|sp_executesql)\b", "SQLi: Command Shell Execution via SQL", 100),
+
         ]
 
         # Cross-Site Scripting (XSS) Patterns
