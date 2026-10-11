@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from app.db.database import (
@@ -13,8 +13,13 @@ from app.db.database import (
     delete_custom_rule
 )
 from app.security.waf_engine import waf_engine
+from app.security.jwt_handler import verify_token, require_admin
 
 router = APIRouter(prefix="/api", tags=["WAF Management & Analytics"])
+
+# Viewing firewall data needs any signed-in user; changing it needs an admin
+signed_in = [Depends(verify_token)]
+admin_only = [Depends(require_admin)]
 
 class IPRuleRequest(BaseModel):
     ip: str = Field(..., json_schema_extra={"example": "192.168.1.50"})
@@ -35,12 +40,12 @@ class AttackSimulationRequest(BaseModel):
     payload: str = Field(..., json_schema_extra={"example": "' OR 1=1 --"})
 
 
-@router.get("/stats")
+@router.get("/stats", dependencies=signed_in)
 def get_stats():
     """Retrieve real-time firewall statistics, block rate, and threat breakdown."""
     return get_waf_stats()
 
-@router.get("/logs")
+@router.get("/logs", dependencies=signed_in)
 def get_logs(
     limit: int = Query(50, ge=1, le=200),
     threat_type: Optional[str] = Query(None),
@@ -49,12 +54,12 @@ def get_logs(
     """Retrieve real-time security logs with optional filtering."""
     return get_recent_logs(limit=limit, threat_type=threat_type, action=action)
 
-@router.get("/ip-rules")
+@router.get("/ip-rules", dependencies=signed_in)
 def list_ip_rules():
     """List all active IP Blacklist and Whitelist rules."""
     return get_ip_rules()
 
-@router.post("/ip-rules")
+@router.post("/ip-rules", dependencies=admin_only)
 def create_ip_rule(req: IPRuleRequest):
     """Add an IP to the blacklist or whitelist."""
     if req.rule_type.upper() not in ["BLACKLIST", "WHITELIST"]:
@@ -62,7 +67,7 @@ def create_ip_rule(req: IPRuleRequest):
     success = add_ip_rule(req.ip, req.rule_type, req.reason)
     return {"message": f"IP {req.ip} added to {req.rule_type.upper()}", "success": success}
 
-@router.delete("/ip-rules/{ip}")
+@router.delete("/ip-rules/{ip}", dependencies=admin_only)
 def remove_ip_rule(ip: str):
     """Remove an IP rule from access control."""
     deleted = delete_ip_rule(ip)
@@ -70,12 +75,12 @@ def remove_ip_rule(ip: str):
         raise HTTPException(status_code=404, detail="IP rule not found")
     return {"message": f"IP {ip} removed from access control", "success": True}
 
-@router.get("/rules")
+@router.get("/rules", dependencies=signed_in)
 def list_custom_rules():
     """List all custom WAF detection rules."""
     return get_all_custom_rules()
 
-@router.post("/rules")
+@router.post("/rules", dependencies=admin_only)
 def create_custom_rule(req: CustomRuleRequest):
     """Add a new custom regex rule to the WAF engine."""
     rule_id = add_custom_rule(
@@ -88,7 +93,7 @@ def create_custom_rule(req: CustomRuleRequest):
     )
     return {"message": "Custom rule created successfully", "rule_id": rule_id}
 
-@router.patch("/rules/{rule_id}/toggle")
+@router.patch("/rules/{rule_id}/toggle", dependencies=admin_only)
 def toggle_rule(rule_id: int):
     """Toggle a custom rule enabled/disabled."""
     new_state = toggle_custom_rule(rule_id)
@@ -96,7 +101,7 @@ def toggle_rule(rule_id: int):
         raise HTTPException(status_code=404, detail="Custom rule not found")
     return {"message": f"Rule status updated", "enabled": new_state}
 
-@router.delete("/rules/{rule_id}")
+@router.delete("/rules/{rule_id}", dependencies=admin_only)
 def remove_custom_rule(rule_id: int):
     """Delete a custom rule."""
     deleted = delete_custom_rule(rule_id)
@@ -104,7 +109,7 @@ def remove_custom_rule(rule_id: int):
         raise HTTPException(status_code=404, detail="Custom rule not found")
     return {"message": "Custom rule deleted", "success": True}
 
-@router.post("/waf/simulate")
+@router.post("/waf/simulate", dependencies=signed_in)
 def simulate_attack(sim: AttackSimulationRequest):
     """
     Simulation Sandbox: evaluates payload against WAF inspection engine without needing a full exploit environment.

@@ -84,13 +84,13 @@ def test_allow_legitimate_request(client):
     assert data["status"] == "SUCCESS"
     assert response.headers.get("x-secureshield-status") == "ACTIVE"
 
-def test_simulation_sandbox(client):
+def test_simulation_sandbox(client, analyst_headers):
     payload = {
         "category": "SQL_INJECTION",
         "target_location": "query",
         "payload": "' UNION SELECT null, username, password FROM users --"
     }
-    response = client.post("/api/waf/simulate", json=payload)
+    response = client.post("/api/waf/simulate", json=payload, headers=analyst_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["is_threat"] is True
@@ -133,8 +133,8 @@ def test_auth_registration_and_jwt_flow(client):
     assert prot_data["user"]["sub"] == "analyst@secureshield.io"
 
 
-def test_waf_stats_endpoint(client):
-    response = client.get("/api/stats")
+def test_waf_stats_endpoint(client, analyst_headers):
+    response = client.get("/api/stats", headers=analyst_headers)
     assert response.status_code == 200
     stats = response.json()
     assert "firewall_status" in stats

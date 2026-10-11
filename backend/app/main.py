@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
@@ -7,6 +7,7 @@ from app.security.auth import router as auth_router
 from app.routes.protected import router as protected_router
 from app.routes.waf_routes import router as waf_router
 from app.middleware.security_middleware import SecurityMiddleware
+from app.security.jwt_handler import verify_token
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,7 +49,7 @@ def home():
         "documentation": "/docs"
     }
 
-@app.get("/stats")
+@app.get("/stats", dependencies=[Depends(verify_token)])
 def get_stats():
     """Backward compatibility endpoint for root /stats"""
     return get_waf_stats()
