@@ -1,10 +1,8 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
-import os
 
-SECRET_KEY = os.getenv("SECURESHIELD_SECRET_KEY", "secureshield-enterprise-supersecret-jwt-key-2026")
-ALGORITHM = "HS256"
+from app.security.config import SECRET_KEY, ALGORITHM
 
 security = HTTPBearer()
 

@@ -145,6 +145,14 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
+# Create your .env with a random JWT signing key (required: the server refuses to start without one)
+# Windows:
+Copy-Item ..\.env.example ..\.env
+# Linux/macOS:
+cp ../.env.example ../.env
+# Then generate a key and paste it into SECURESHIELD_SECRET_KEY in .env:
+python -c "import secrets; print(secrets.token_urlsafe(64))"
+
 # Start the SecureShield WAF server
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
