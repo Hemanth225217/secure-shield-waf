@@ -152,6 +152,8 @@ Copy-Item ..\.env.example ..\.env
 cp ../.env.example ../.env
 # Then generate a key and paste it into SECURESHIELD_SECRET_KEY in .env:
 python -c "import secrets; print(secrets.token_urlsafe(64))"
+# Optional: give your own account the admin role (everyone else registers as an analyst)
+#   SECURESHIELD_ADMIN_EMAILS=you@example.com
 
 # Start the SecureShield WAF server
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload

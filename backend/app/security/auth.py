@@ -10,7 +10,7 @@ from app.db.database import (
     create_user_record,
     add_ip_rule
 )
-from app.security.config import SECRET_KEY, ALGORITHM
+from app.security.config import SECRET_KEY, ALGORITHM, ADMIN_EMAILS
 
 router = APIRouter(tags=["Authentication"])
 
@@ -24,6 +24,12 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
+def role_for(email: str, stored_role: str = "analyst") -> str:
+    """Admin comes only from SECURESHIELD_ADMIN_EMAILS or the stored role, never from the email text."""
+    if email.strip().lower() in ADMIN_EMAILS:
+        return "admin"
+    return stored_role or "analyst"
 
 def create_token(data: dict) -> str:
     payload = data.copy()
@@ -42,7 +48,7 @@ def register(user: User):
         raise HTTPException(status_code=400, detail="Username already taken")
 
     hashed_pw = hash_password(user.password)
-    create_user_record(user.username, user.email, hashed_pw)
+    create_user_record(user.username, user.email, hashed_pw, role=role_for(user.email))
 
     return {
         "status": "success",
@@ -75,10 +81,11 @@ def login(user: LoginUser, request: Request):
     # Successful login: reset failed attempts
     failed_attempts[client_ip] = 0
 
+    role = role_for(db_user["email"], db_user.get("role", "analyst"))
     token = create_token({
         "sub": db_user["email"],
         "username": db_user["username"],
-        "role": "admin" if db_user["email"].startswith("admin") else "analyst"
+        "role": role
     })
 
     return {
@@ -86,5 +93,5 @@ def login(user: LoginUser, request: Request):
         "token_type": "bearer",
         "username": db_user["username"],
         "email": db_user["email"],
-        "role": "admin" if db_user["email"].startswith("admin") else "analyst"
+        "role": role
     }

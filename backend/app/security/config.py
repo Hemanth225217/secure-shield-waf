@@ -39,3 +39,10 @@ def load_secret_key() -> str:
 
 SECRET_KEY = load_secret_key()
 ALGORITHM = "HS256"
+
+# Emails that get the admin role (comma-separated). Everyone else is an analyst.
+ADMIN_EMAILS = {
+    email.strip().lower()
+    for email in os.getenv("SECURESHIELD_ADMIN_EMAILS", "").split(",")
+    if email.strip()
+}

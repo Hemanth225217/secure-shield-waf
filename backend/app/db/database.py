@@ -67,9 +67,15 @@ def init_db():
         username TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE NOT NULL,
         hashed_password TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'analyst'
     )
     """)
+
+    # Migrate databases created before roles were stored per user
+    columns = [row[1] for row in cursor.execute("PRAGMA table_info(users)")]
+    if "role" not in columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'analyst'")
 
     # Seed default custom rules if empty
     cursor.execute("SELECT COUNT(*) FROM custom_rules")
@@ -322,14 +328,14 @@ def get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
     conn.close()
     return dict(row) if row else None
 
-def create_user_record(username: str, email: str, hashed_password: str) -> bool:
+def create_user_record(username: str, email: str, hashed_password: str, role: str = "analyst") -> bool:
     conn = get_db()
     cursor = conn.cursor()
     try:
         cursor.execute("""
-        INSERT INTO users (username, email, hashed_password, created_at)
-        VALUES (?, ?, ?, ?)
-        """, (username.strip(), email.strip().lower(), hashed_password, datetime.now(timezone.utc).isoformat()))
+        INSERT INTO users (username, email, hashed_password, created_at, role)
+        VALUES (?, ?, ?, ?, ?)
+        """, (username.strip(), email.strip().lower(), hashed_password, datetime.now(timezone.utc).isoformat(), role))
         conn.commit()
         return True
     finally:
