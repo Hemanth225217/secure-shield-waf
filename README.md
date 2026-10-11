@@ -85,6 +85,8 @@ flowchart TD
 ### 6. 👤 Enterprise Identity & Protected API Gateway
 * User registration and authentication powered by **bcrypt** password hashing and **JWT (JSON Web Tokens)**.
 * Role-based token claims and protected SOC endpoints.
+* **Management API is protected:** viewing stats, logs, IP rules and detection rules (and using the attack sandbox) requires a signed-in user; adding, toggling or deleting IP rules and detection rules requires the **admin** role. Admins are the emails listed in `SECURESHIELD_ADMIN_EMAILS`; everyone else is an analyst with read-only access.
+* The dashboard opens on the sign-in page until you log in, and signs you out automatically if your token expires.
 
 ---
 

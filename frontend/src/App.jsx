@@ -26,9 +26,19 @@ import {
 import "./App.css";
 
 const API_BASE = "http://127.0.0.1:8000";
+const TOKEN_KEY = "secureshield_token";
+const ROLE_KEY = "secureshield_role";
+
+// Management API client: sends the signed-in user's token with every request
+const api = axios.create({ baseURL: API_BASE });
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState(localStorage.getItem(TOKEN_KEY) ? "dashboard" : "auth");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [loading, setLoading] = useState(false);
 
@@ -80,7 +90,9 @@ export default function App() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [token, setToken] = useState(localStorage.getItem("secureshield_token") || "");
+  const [token, setToken] = useState(localStorage.getItem(TOKEN_KEY) || "");
+  const [role, setRole] = useState(localStorage.getItem(ROLE_KEY) || "");
+  const isAdmin = role === "admin";
   const [authMessage, setAuthMessage] = useState("");
   const [protectedData, setProtectedData] = useState(null);
 
@@ -88,7 +100,7 @@ export default function App() {
 
   const fetchStats = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/api/stats`);
+      const res = await api.get("/api/stats");
       setStats(res.data);
     } catch (err) {
       console.error("Failed to fetch stats", err);
@@ -97,7 +109,7 @@ export default function App() {
 
   const fetchLogs = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/api/logs`, {
+      const res = await api.get("/api/logs", {
         params: {
           limit: 50,
           threat_type: filterThreat !== "ALL" ? filterThreat : undefined,
@@ -112,7 +124,7 @@ export default function App() {
 
   const fetchIpRules = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/api/ip-rules`);
+      const res = await api.get("/api/ip-rules");
       setIpRules(res.data);
     } catch (err) {
       console.error("Failed to fetch IP rules", err);
@@ -121,14 +133,38 @@ export default function App() {
 
   const fetchCustomRules = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/api/rules`);
+      const res = await api.get("/api/rules");
       setCustomRules(res.data);
     } catch (err) {
       console.error("Failed to fetch custom rules", err);
     }
   };
 
+  const clearSession = (message) => {
+    setToken("");
+    setRole("");
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(ROLE_KEY);
+    setProtectedData(null);
+    setAuthMessage(message);
+  };
+
+  useEffect(() => {
+    const id = api.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          clearSession("🔒 Your session has expired or you are not signed in. Please sign in again.");
+          setActiveTab("auth");
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => api.interceptors.response.eject(id);
+  }, []);
+
   const refreshAll = () => {
+    if (!localStorage.getItem(TOKEN_KEY)) return;
     fetchStats();
     fetchLogs();
     fetchIpRules();
@@ -136,6 +172,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!token) return;
     refreshAll();
     let timer = null;
     if (autoRefresh) {
@@ -145,7 +182,7 @@ export default function App() {
       }, 3000);
     }
     return () => clearInterval(timer);
-  }, [autoRefresh, activeTab, filterThreat, filterAction]);
+  }, [token, autoRefresh, activeTab, filterThreat, filterAction]);
 
   // ---------------- Handlers ----------------
 
@@ -153,7 +190,7 @@ export default function App() {
     e.preventDefault();
     if (!newIp.trim()) return;
     try {
-      await axios.post(`${API_BASE}/api/ip-rules`, {
+      await api.post("/api/ip-rules", {
         ip: newIp.trim(),
         rule_type: newIpType,
         reason: newIpReason || "Manual entry via WAF Dashboard"
@@ -169,11 +206,11 @@ export default function App() {
 
   const handleDeleteIp = async (ip) => {
     try {
-      await axios.delete(`${API_BASE}/api/ip-rules/${ip}`);
+      await api.delete(`/api/ip-rules/${ip}`);
       fetchIpRules();
       fetchStats();
     } catch (err) {
-      alert("Failed to remove IP rule");
+      alert(err.response?.data?.detail || "Failed to remove IP rule");
     }
   };
 
@@ -181,7 +218,7 @@ export default function App() {
     e.preventDefault();
     if (!newRuleName.trim() || !newRulePattern.trim()) return;
     try {
-      await axios.post(`${API_BASE}/api/rules`, {
+      await api.post("/api/rules", {
         name: newRuleName,
         pattern: newRulePattern,
         target_location: newRuleLoc,
@@ -194,27 +231,27 @@ export default function App() {
       fetchCustomRules();
       fetchStats();
     } catch (err) {
-      alert("Failed to create custom rule");
+      alert(err.response?.data?.detail || "Failed to create custom rule");
     }
   };
 
   const handleToggleRule = async (id) => {
     try {
-      await axios.patch(`${API_BASE}/api/rules/${id}/toggle`);
+      await api.patch(`/api/rules/${id}/toggle`);
       fetchCustomRules();
       fetchStats();
     } catch (err) {
-      alert("Failed to toggle rule");
+      alert(err.response?.data?.detail || "Failed to toggle rule");
     }
   };
 
   const handleDeleteRule = async (id) => {
     try {
-      await axios.delete(`${API_BASE}/api/rules/${id}`);
+      await api.delete(`/api/rules/${id}`);
       fetchCustomRules();
       fetchStats();
     } catch (err) {
-      alert("Failed to delete rule");
+      alert(err.response?.data?.detail || "Failed to delete rule");
     }
   };
 
@@ -224,14 +261,14 @@ export default function App() {
     setSimulating(true);
     setLiveTestResult(null);
     try {
-      const res = await axios.post(`${API_BASE}/api/waf/simulate`, {
+      const res = await api.post("/api/waf/simulate", {
         category: simCategory,
         target_location: simLocation,
         payload: simPayload
       });
       setSimResult(res.data);
     } catch (err) {
-      setSimResult({ error: err.message });
+      setSimResult({ error: err.response?.data?.detail || err.message });
     } finally {
       setSimulating(false);
     }
@@ -305,7 +342,9 @@ export default function App() {
       });
       const jwtToken = res.data.access_token;
       setToken(jwtToken);
-      localStorage.setItem("secureshield_token", jwtToken);
+      setRole(res.data.role);
+      localStorage.setItem(TOKEN_KEY, jwtToken);
+      localStorage.setItem(ROLE_KEY, res.data.role);
       setAuthMessage(`✅ Login successful! Authenticated as ${res.data.username} (${res.data.role})`);
     } catch (err) {
       setAuthMessage(`❌ ${err.response?.data?.detail || "Login failed"}`);
@@ -330,10 +369,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    setToken("");
-    localStorage.removeItem("secureshield_token");
-    setProtectedData(null);
-    setAuthMessage("ℹ️ Logged out successfully.");
+    clearSession("ℹ️ Logged out successfully.");
   };
 
   return (
@@ -443,6 +479,25 @@ export default function App() {
             </button>
           </div>
         </header>
+
+        {!token && activeTab !== "auth" && (
+          <div className="panel access-notice">
+            <Lock size={18} color="var(--accent-cyan)" />
+            <span>
+              Sign in to view firewall data.{" "}
+              <button className="btn btn-sm btn-primary" onClick={() => setActiveTab("auth")}>
+                Go to sign in
+              </button>
+            </span>
+          </div>
+        )}
+
+        {token && !isAdmin && (activeTab === "ip_control" || activeTab === "rules") && (
+          <div className="panel access-notice">
+            <Eye size={18} color="var(--accent-cyan)" />
+            <span>Read-only view: you are signed in as an analyst. Only admins can change IP rules and detection rules.</span>
+          </div>
+        )}
 
         {/* ==================== TAB 1: SOC DASHBOARD ==================== */}
         {activeTab === "dashboard" && (

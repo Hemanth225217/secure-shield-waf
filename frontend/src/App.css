@@ -539,3 +539,11 @@ input:focus, select:focus, textarea:focus {
     padding: 20px;
   }
 }
+
+/* Sign-in / read-only notices */
+.access-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+}
