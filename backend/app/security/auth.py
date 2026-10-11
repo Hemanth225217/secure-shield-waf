@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timedelta, timezone
-import os
 
 from app.models.user_model import User, LoginUser
 from app.db.database import (
@@ -11,11 +10,9 @@ from app.db.database import (
     create_user_record,
     add_ip_rule
 )
+from app.security.config import SECRET_KEY, ALGORITHM
 
 router = APIRouter(tags=["Authentication"])
-
-SECRET_KEY = os.getenv("SECURESHIELD_SECRET_KEY", "secureshield-enterprise-supersecret-jwt-key-2026")
-ALGORITHM = "HS256"
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
