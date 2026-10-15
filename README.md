@@ -1,13 +1,17 @@
 # 🛡️ SecureShield WAF
 
-> **Enterprise-Grade Web Application Firewall (WAF) & Real-Time Security Operations Center (SOC)**  
+> **A Layer-7 Web Application Firewall (WAF) with a real-time Security Operations Center (SOC) dashboard**  
 > Built with **FastAPI**, **Python 3**, **React 19**, and **SQLite**.
+
+[![CI](https://github.com/Hemanth225217/secure-shield-waf/actions/workflows/ci.yml/badge.svg)](https://github.com/Hemanth225217/secure-shield-waf/actions/workflows/ci.yml)
 
 ---
 
 ## 📌 Overview
 
-**SecureShield WAF** is an intelligent Layer-7 Web Application Firewall and Threat Prevention Gateway designed to detect, inspect, and block sophisticated web attacks in real time before they reach backend application logic.
+**SecureShield WAF** is a Layer-7 Web Application Firewall that inspects incoming HTTP requests and blocks common web attacks (SQL injection, XSS, path traversal, command injection, scanner bots) before they reach the application.
+
+Detection is rule-based: regex signatures plus heuristic threat scoring. It has not been benchmarked against a public attack dataset, so detection and false-positive rates are not measured. Treat it as a learning and demonstration project, not a replacement for a production WAF.
 
 Featuring a multi-vector regex and heuristic inspection engine, sliding-window rate limiting, dynamic IP blacklist/whitelist enforcement, custom regex signature creation, and an interactive **Attack Simulation Sandbox**, SecureShield equips security teams and developers with full visibility and defensive controls.
 
@@ -19,7 +23,7 @@ Featuring a multi-vector regex and heuristic inspection engine, sliding-window r
 flowchart TD
     Client["🌐 Client / Attacker / Scanner"] --> WAF["🛡️ SecureShield WAF Middleware"]
     
-    subgraph WAF_Inspection_Pipeline ["Pipeline: Sub-Millisecond Deep Inspection"]
+    subgraph WAF_Inspection_Pipeline ["Pipeline: Request Inspection"]
         IP_Check{"IP Access Check"}
         Rate_Limit{"Sliding Window Rate Limiter"}
         WAF_Engine{"Multi-Vector WAF Engine"}
@@ -82,7 +86,7 @@ flowchart TD
 * Create user-defined regex rules on the fly targeting URL Path, Query, Headers, Body, or All.
 * Assign custom threat scores and toggle rules Active/Disabled in real-time.
 
-### 6. 👤 Enterprise Identity & Protected API Gateway
+### 6. 👤 Identity & Protected API Gateway
 * User registration and authentication powered by **bcrypt** password hashing and **JWT (JSON Web Tokens)**.
 * Role-based token claims and protected SOC endpoints.
 * **Management API is protected:** viewing stats, logs, IP rules and detection rules (and using the attack sandbox) requires a signed-in user; adding, toggling or deleting IP rules and detection rules requires the **admin** role. Admins are the emails listed in `SECURESHIELD_ADMIN_EMAILS`; everyone else is an analyst with read-only access.
@@ -184,14 +188,14 @@ The SOC Dashboard will be running at `http://localhost:5173`.
 
 ## 🧪 Running Automated Tests
 
-Run the comprehensive automated test suite covering all attack vectors, rate limiting, and auth flows:
+Run the automated test suite covering the attack vectors, rate limiting, role-based access and auth flows:
 
 ```bash
 cd backend
 python -m pytest tests -v
 ```
 
-All 11 tests pass with 100% success:
+All 40 tests pass, locally and in CI on every push. They cover:
 * SQL Injection detection (query & body)
 * Cross-Site Scripting (XSS) prevention
 * Path Traversal detection
@@ -201,6 +205,7 @@ All 11 tests pass with 100% success:
 * Whitelist & Blacklist enforcement
 * Simulation sandbox accuracy
 * User registration, JWT login & protected route access
+* Role-based access: only configured admin emails get the admin role, and a role sent in the request body is ignored
 
 ---
 
@@ -220,4 +225,4 @@ Every HTTP response passing through the firewall includes hardened security head
 ---
 
 ## 📜 License
-MIT License. Built for enterprise security demonstration, defensive testing, and application resilience.
+MIT License (see [`LICENSE`](LICENSE)). Built for learning, demonstration and defensive testing.
